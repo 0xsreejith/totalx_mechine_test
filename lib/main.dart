@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/di/injection_container.dart' as di;
 import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/providers/otp_provider.dart';
+import 'features/home/presentation/providers/user_provider.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 
 Future<void> main() async {
@@ -23,8 +24,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<OTPProvider>(
-      create: (_) => di.sl<OTPProvider>(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<OTPProvider>(
+          create: (_) => di.sl<OTPProvider>(),
+        ),
+        ChangeNotifierProvider<UserProvider>(
+          create: (_) => di.sl<UserProvider>(),
+        ),
+      ],
       child: MaterialApp(
         title: 'TOTAL X',
         debugShowCheckedModeBanner: false,
