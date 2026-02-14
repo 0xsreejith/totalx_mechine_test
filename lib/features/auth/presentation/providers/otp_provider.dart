@@ -35,15 +35,27 @@ class OTPProvider extends OTPProviderBase {
     _clearError();
     try {
       final normalized = _normalizeId(identifier);
+      print('🔵 [OTP] Sending OTP to: $normalized');
+      
       final result = await sendOtpUseCase(SendOtpParams(identifier: normalized));
+      
       _reqId = result.reqId;
       _phoneIdentifier = normalized;
       _demoOTP = DemoCredentials.useDemoMode ? DemoCredentials.getDemoOTP(normalized) : null;
       _setStatus(OTPStatus.otpSent);
       _message = result.message;
+      
+      print('✅ [OTP] OTP sent successfully');
+      print('   ReqId: $_reqId');
+      print('   Message: $_message');
+      if (_demoOTP != null) {
+        print('   Demo OTP: $_demoOTP');
+      }
     } on Failure catch (e) {
+      print('❌ [OTP] Failed to send OTP: ${e.message}');
       _setError(e.message);
     } catch (e) {
+      print('❌ [OTP] Error sending OTP: $e');
       _setError(e.toString());
     }
   }
@@ -53,13 +65,24 @@ class OTPProvider extends OTPProviderBase {
     _setStatus(OTPStatus.loading);
     _clearError();
     try {
+      print('🔵 [OTP] Verifying OTP');
+      print('   ReqId: $reqId');
+      print('   OTP: $otp');
+      
       final result = await verifyOtpUseCase(VerifyOtpParams(reqId: reqId, otp: otp));
+      
       _accessToken = result.accessToken;
       _setStatus(OTPStatus.otpVerified);
       _message = result.message;
+      
+      print('✅ [OTP] OTP verified successfully');
+      print('   Access Token: ${_accessToken?.substring(0, 20)}...');
+      print('   Message: $_message');
     } on Failure catch (e) {
+      print('❌ [OTP] Failed to verify OTP: ${e.message}');
       _setError(e.message);
     } catch (e) {
+      print('❌ [OTP] Error verifying OTP: $e');
       _setError(e.toString());
     }
   }
@@ -69,12 +92,21 @@ class OTPProvider extends OTPProviderBase {
     _setStatus(OTPStatus.loading);
     _clearError();
     try {
+      print('🔵 [OTP] Resending OTP');
+      print('   ReqId: $reqId');
+      print('   Channel: $channel');
+      
       await retryOtpUseCase(RetryOtpParams(reqId: reqId, channel: channel));
+      
       _setStatus(OTPStatus.otpSent);
       _message = 'OTP resent successfully';
+      
+      print('✅ [OTP] OTP resent successfully');
     } on Failure catch (e) {
+      print('❌ [OTP] Failed to resend OTP: ${e.message}');
       _setError(e.message);
     } catch (e) {
+      print('❌ [OTP] Error resending OTP: $e');
       _setError(e.toString());
     }
   }
