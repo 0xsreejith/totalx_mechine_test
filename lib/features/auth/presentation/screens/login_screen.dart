@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/di/injection_container.dart' as di;
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../providers/otp_provider.dart';
@@ -20,10 +21,18 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   String? _errorText;
   bool _isNavigating = false;
+  late OTPProvider _otpProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _otpProvider = di.sl<OTPProvider>();
+  }
 
   @override
   void dispose() {
     _phoneController.dispose();
+    // Don't dispose _otpProvider here as it's passed to OTP screen
     super.dispose();
   }
 
@@ -48,26 +57,28 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final provider = context.read<OTPProvider>();
-    await provider.sendOTPToPhone(phone);
+    await _otpProvider.sendOTPToPhone(phone);
 
     if (!mounted) return;
 
-    if (provider.status == OTPStatus.otpSent) {
+    if (_otpProvider.status == OTPStatus.otpSent) {
       // Navigate to OTP verification screen
       if (!_isNavigating) {
         _isNavigating = true;
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => OtpVerificationScreen(phoneNumber: phone),
+            builder: (_) => ChangeNotifierProvider.value(
+              value: _otpProvider,
+              child: OtpVerificationScreen(phoneNumber: phone),
+            ),
           ),
         ).then((_) {
           _isNavigating = false;
         });
       }
-    } else if (provider.status == OTPStatus.error) {
+    } else if (_otpProvider.status == OTPStatus.error) {
       setState(() {
-        _errorText = provider.error ?? 'Failed to send OTP. Please try again.';
+        _errorText = _otpProvider.error ?? 'Failed to send OTP. Please try again.';
       });
     }
   }
@@ -77,40 +88,43 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Consumer<OTPProvider>(
-          builder: (context, otpProvider, child) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  const SizedBox(height: 40),
-                  const PhoneIllustration(),
-                  const SizedBox(height: 40),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Enter Phone Number',
-                      style: AppTextStyles.heading,
+        child: ChangeNotifierProvider.value(
+          value: _otpProvider,
+          child: Consumer<OTPProvider>(
+            builder: (context, otpProvider, child) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    const PhoneIllustration(),
+                    const SizedBox(height: 40),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Enter Phone Number',
+                        style: AppTextStyles.heading,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  PhoneInputField(
-                    controller: _phoneController,
-                    errorText: _errorText,
-                  ),
-                  const SizedBox(height: 16),
-                  const TermsText(),
-                  const SizedBox(height: 24),
-                  PrimaryButton(
-                    text: 'Get OTP',
-                    onPressed: _handleGetOTP,
-                    isLoading: otpProvider.status == OTPStatus.loading,
-                  ),
-                  const Spacer(),
-                ],
-              ),
-            );
-          },
+                    const SizedBox(height: 20),
+                    PhoneInputField(
+                      controller: _phoneController,
+                      errorText: _errorText,
+                    ),
+                    const SizedBox(height: 16),
+                    const TermsText(),
+                    const SizedBox(height: 24),
+                    PrimaryButton(
+                      text: 'Get OTP',
+                      onPressed: _handleGetOTP,
+                      isLoading: otpProvider.status == OTPStatus.loading,
+                    ),
+                    const Spacer(),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

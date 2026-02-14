@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/services/auth_service.dart';
 import '../../features/auth/data/datasources/otp_local_datasource.dart';
 import '../../features/auth/data/datasources/otp_remote_datasource.dart';
 import '../../features/auth/data/datasources/otp_remote_datasource_impl.dart';
@@ -23,6 +24,12 @@ Future<void> init() async {
   // External
   final sharedPrefs = await SharedPreferences.getInstance();
   sl.registerLazySingleton<SharedPreferences>(() => sharedPrefs);
+
+  // ============ CORE SERVICES ============
+  
+  sl.registerLazySingleton<AuthService>(
+    () => AuthService(sl()),
+  );
 
   // ============ AUTH FEATURE ============
   
@@ -67,8 +74,11 @@ Future<void> init() async {
     () => UserLocalDatasource(),
   );
 
-  // Provider
-  sl.registerFactory(
-    () => UserProvider(sl()),
-  );
+  // Provider - requires phone number, so registered as factory with parameter
+  // Use getUserProvider(phoneNumber) to get instance
+}
+
+/// Get UserProvider instance for specific phone number
+UserProvider getUserProvider(String phoneNumber) {
+  return UserProvider(sl<UserLocalDatasource>(), phoneNumber);
 }

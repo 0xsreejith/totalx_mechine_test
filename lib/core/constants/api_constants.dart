@@ -24,4 +24,6 @@ class RetryChannel {
 /// Local storage keys.
 class StorageKeys {
   static const String cachedAccessToken = 'CACHED_ACCESS_TOKEN';
+  static const String cachedPhoneNumber = 'CACHED_PHONE_NUMBER';
+  static const String isLoggedIn = 'IS_LOGGED_IN';
 }

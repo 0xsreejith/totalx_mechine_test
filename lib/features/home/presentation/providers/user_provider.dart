@@ -4,16 +4,23 @@ import 'package:uuid/uuid.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../data/models/user_model.dart';
 
+/// ENUM FOR UI SELECTION
+enum UserSortType { all, older, younger }
+
 class UserProvider extends ChangeNotifier {
   final UserLocalDatasource datasource;
+  final String phoneNumber;
 
-  UserProvider(this.datasource);
+  UserProvider(this.datasource, this.phoneNumber);
 
   List<UserEntity> users = [];
   List<UserEntity> _allUsers = []; // Keep original list for search/filter
   int limit = 10;
   String _currentSearchQuery = '';
   String? _currentFilter; // 'older', 'younger', or null
+
+  /// NEW: UI state (radio selection)
+  UserSortType selectedSort = UserSortType.all;
 
   /// Add a new user
   Future<void> addUser(
@@ -30,20 +37,21 @@ class UserProvider extends ChangeNotifier {
       imagePath: image,
     );
 
-    await datasource.addUser(UserModel.fromEntity(user));
+    await datasource.addUser(UserModel.fromEntity(user), phoneNumber);
     await loadUsers();
   }
 
   /// Load users from database
   Future<void> loadUsers() async {
-    final result = await datasource.getUsers(limit);
+    final result = await datasource.getUsers(limit, phoneNumber);
     _allUsers = result.map((e) => e.toEntity()).toList();
-    
+
     // Reset filter and search
     _currentFilter = null;
     _currentSearchQuery = '';
+    selectedSort = UserSortType.all;
+
     users = List.from(_allUsers);
-    
     notifyListeners();
   }
 
@@ -56,17 +64,15 @@ class UserProvider extends ChangeNotifier {
   /// Search users by name or phone
   Future<void> search(String query) async {
     _currentSearchQuery = query;
-    
+
     if (query.isEmpty) {
-      // If search is empty, restore based on current filter
       _applyCurrentFilter();
       return;
     }
 
-    final result = await datasource.search(query);
+    final result = await datasource.search(query, phoneNumber);
     final searchResults = result.map((e) => e.toEntity()).toList();
-    
-    // Apply filter if active
+
     if (_currentFilter == 'older') {
       users = searchResults.where((u) => u.age >= 60).toList();
     } else if (_currentFilter == 'younger') {
@@ -74,16 +80,33 @@ class UserProvider extends ChangeNotifier {
     } else {
       users = searchResults;
     }
-    
+
     notifyListeners();
+  }
+
+  /// ================================
+  /// NEW METHOD FOR RADIO UI
+  /// ================================
+  void selectSort(UserSortType type) {
+    selectedSort = type;
+
+    switch (type) {
+      case UserSortType.all:
+        clearFilters();
+        break;
+      case UserSortType.older:
+        sortByAgeCategory(true);
+        break;
+      case UserSortType.younger:
+        sortByAgeCategory(false);
+        break;
+    }
   }
 
   /// Sort by age category
   void sortByAgeCategory(bool older) {
     _currentFilter = older ? 'older' : 'younger';
-    
-    // If there's an active search, apply filter to search results
-    // Otherwise apply to all users
+
     if (_currentSearchQuery.isNotEmpty) {
       search(_currentSearchQuery);
     } else {
@@ -107,6 +130,7 @@ class UserProvider extends ChangeNotifier {
   void clearFilters() {
     _currentFilter = null;
     _currentSearchQuery = '';
+    selectedSort = UserSortType.all;
     users = List.from(_allUsers);
     notifyListeners();
   }

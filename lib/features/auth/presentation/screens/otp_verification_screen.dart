@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/di/injection_container.dart' as di;
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../home/presentation/screens/home_screen.dart';
@@ -29,6 +31,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     6,
     (index) => FocusNode(),
   );
+  
+  OTPProvider? _otpProvider;
 
   @override
   void initState() {
@@ -37,6 +41,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     // Start timer after build is complete
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<OTPProvider>();
+      _otpProvider = provider;
       provider.startResendTimer(seconds: 60);
     });
     
@@ -54,6 +59,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     for (var focusNode in _focusNodes) {
       focusNode.dispose();
     }
+    
+    // Stop timer using stored reference
+    _otpProvider?.stopResendTimer();
+    
     super.dispose();
   }
 
@@ -84,9 +93,26 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     if (!mounted) return;
 
     if (provider.status == OTPStatus.otpVerified) {
-      // Navigate to home screen
+      // Stop timer before navigation
+      provider.stopResendTimer();
+      
+      // Save login session
+      final authService = di.sl<AuthService>();
+      await authService.saveLoginSession(
+        widget.phoneNumber,
+        provider.accessToken ?? '',
+      );
+
+      if (!mounted) return;
+
+      // Navigate to home screen with UserProvider
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => di.getUserProvider(widget.phoneNumber)..loadUsers(),
+            child: HomeScreen(phoneNumber: widget.phoneNumber),
+          ),
+        ),
         (route) => false,
       );
     } else if (provider.status == OTPStatus.error) {
